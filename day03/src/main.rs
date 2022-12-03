@@ -11,20 +11,22 @@ fn main() {
     let mut badge_score = 0;
 
     // set of badges
-    let mut badges = vec![vec![0; 52]; 3];
+    let mut bm_badges = vec![0u64; 3];
     for (iter, line) in file.lines().enumerate() {
         let badge = iter % 3;
+
         // reset badges because in a new set
         if badge == 0 {
-            for b in 0..3 {
-                for n in &mut badges[b] {
-                    *n = 0;
-                }
+            for b in &mut bm_badges {
+                *b = 0
             }
         }
 
-        // two compartments
-        let mut compartments = vec![vec![0; 52]; 2];
+        let mut bm_comp = vec![0u64; 2];
+
+        let mut check_badge = badge == 2;
+        let mut check_comp = true;
+
         for (i, c) in line.chars().enumerate() {
 
             let v: usize = if 'A' <= c && c <= 'Z' {
@@ -34,16 +36,18 @@ fn main() {
             };
 
             // If item is on both compartments were done
-            let compartment = i / (line.len() / 2);
-            compartments[compartment][v] = compartments[compartment][v] + 1;
-            if compartment == 1 && compartments[0][v] > 0 && compartments[1][v] == 1 {
+            let comp = i / (line.len() / 2);
+            bm_comp[comp] = bm_comp[comp] | (1 << v);
+            if comp == 1 && check_comp && bm_comp[0] & bm_comp[1] > 0 {
                 item_score = item_score + v + 1;
+                check_comp = false;
             }
 
             // If item is in all three badges were done
-            badges[badge][v] = badges[badge][v] + 1;
-            if badge == 2 && badges[0][v] > 0 && badges[1][v] > 0 && badges[2][v] == 1 {
+            bm_badges[badge] = bm_badges[badge] | (1 << v);
+            if check_badge && bm_badges[0] & bm_badges[1] & bm_badges[2] > 0 {
                 badge_score = badge_score + v + 1;
+                check_badge = false;
             }
         }
     }
