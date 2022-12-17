@@ -1,20 +1,25 @@
 use std::env;
 use std::fs;
 
-fn insert(grid: &mut Vec<u128>, x: usize, y: usize) {
+fn insert(grid: &mut Vec<u128>, x: usize, y: usize, span: usize) {
+    let y = y * span + x / 128;
+    let x = x % 128;
     grid[y] |= (1 as u128) << x;
 }
 
-fn filled(grid: &Vec<u128>, x: usize, y: usize) -> bool {
+fn filled(grid: &Vec<u128>, x: usize, y: usize, span: usize) -> bool {
+    let y = y * span + x / 128;
+    let x = x % 128;
     grid[y] & ((1 as u128) << x) != 0
 }
 
-fn print(stone: &Vec<u128>, grid: &Vec<u128>, width: usize) {
-    for y in 0..stone.len() {
-        for x in 0..width {
-            if filled(&stone, x, y) {
+#[allow(dead_code)]
+fn print(stone: &Vec<u128>, grid: &Vec<u128>, span: usize) {
+    for y in 0..stone.len() / span {
+        for x in 0..span * 128 {
+            if filled(&stone, x, y, span) {
                 print!("#");
-            } else if filled(&grid, x, y) {
+            } else if filled(&grid, x, y, span) {
                 print!("o");
             } else {
                 print!(".");
@@ -43,28 +48,27 @@ fn main() {
                 xmin = std::cmp::min(x, xmin);
                 ymax = std::cmp::max(y, ymax);
                 ymin = std::cmp::min(y, ymin);
-                wall.push((x, y - 1));
+                wall.push((x, y));
             }
         }
         rocks.push(wall);
     }
-    let height = ymax;
-    let width = xmax - xmin + 1;
-    assert!(width < 128);
-    let shift = xmin - 64 + width / 2;
-    let mut stone = vec![0 as u128; height];
+    let height = ymax+1;
+    let span = 8;
+
+    let mut stone = vec![0 as u128; span * height];
     for wall in rocks {
         if wall.len() > 0 {
             let (mut x0, mut y0) = wall[0];
-            insert(&mut stone, x0 - shift, y0);
+            insert(&mut stone, x0, y0, span);
             for (x1, y1) in &wall[1..] {
                 if x0 == *x1 {
                     for y in std::cmp::min(y0, *y1)..std::cmp::max(y0, *y1) + 1 {
-                        insert(&mut stone, x0 - shift, y);
+                        insert(&mut stone, x0, y, span);
                     }
                 } else if y0 == *y1 {
                     for x in std::cmp::min(x0, *x1)..std::cmp::max(x0, *x1) + 1 {
-                        insert(&mut stone, x - shift, y0);
+                        insert(&mut stone, x, y0, span);
                     }
                 } else {
                     panic!();
@@ -74,38 +78,74 @@ fn main() {
         }
     }
     let mut grid = stone.clone();
-    print(&stone, &grid, 128);
-    println!("");
+    // print(&stone, &grid, span);
+    // println!("");
 
     let mut stack = Vec::new();
     let mut part_a = 0;
-    stack.push(((500 as usize) - shift, 0 as usize));
+    stack.push(((500 as usize), 0 as usize));
     'outer: loop {
         let (mut x, mut y) = stack.pop().unwrap();
         loop {
             if y + 1 == height {
                 break 'outer;
-            } else if !filled(&grid, x, y + 1) {
+            } else if !filled(&grid, x, y + 1, span) {
                 stack.push((x, y));
                 y += 1;
-            } else if !filled(&grid, x - 1, y + 1) {
+            } else if !filled(&grid, x - 1, y + 1, span) {
                 stack.push((x, y));
                 x -= 1;
                 y += 1;
-            } else if !filled(&grid, x + 1, y + 1) {
+            } else if !filled(&grid, x + 1, y + 1, span) {
                 stack.push((x, y));
                 x += 1;
                 y += 1;
             } else {
-                insert(&mut grid, x, y);
+                insert(&mut grid, x, y, span);
                 part_a += 1;
                 break;
             }
         }
     }
-    print(&stone, &grid, 128);
-    println!("");
+    // print(&stone, &grid, span);
+    // println!("");
 
+    for _ in 0..span {
+        stone.push(0);
+    }
+    for _ in 0..span {
+        stone.push(u128::MAX);
+    }
     let mut grid = stone.clone();
-    println!("{}", part_a);
+    // print(&stone, &grid, span);
+
+    let mut stack = Vec::new();
+    let mut part_b = 0;
+    stack.push(((500 as usize), 0 as usize));
+
+    while !stack.is_empty() {
+        let (mut x, mut y) = stack.pop().unwrap();
+        loop {
+            if !filled(&grid, x, y + 1, span) {
+                stack.push((x, y));
+                y += 1;
+            } else if !filled(&grid, x - 1, y + 1, span) {
+                stack.push((x, y));
+                x -= 1;
+                y += 1;
+            } else if !filled(&grid, x + 1, y + 1, span) {
+                stack.push((x, y));
+                x += 1;
+                y += 1;
+            } else {
+                insert(&mut grid, x, y, span);
+                part_b += 1;
+                break;
+            }
+        }
+    }
+
+    // print(&stone, &grid, span);
+    println!("until abyss:   {}", part_a);
+    println!("until stopped: {}", part_b);
 }
