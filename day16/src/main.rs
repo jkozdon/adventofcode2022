@@ -10,16 +10,15 @@ fn largest(
     visited: &mut Vec<bool>,
     rate: &Vec<u32>,
     dist: &Vec<u32>,
-    num_nodes: usize,
 ) -> u32 {
     let mut total = 0 as u32;
-    for nxt in 0..num_nodes {
+    for nxt in 0..rate.len() {
         if !visited[nxt] && rate[nxt] > 0 {
             visited[nxt] = true;
-            let d = dist[cur * num_nodes + nxt];
+            let d = dist[cur * rate.len() + nxt];
             if d + time < 30 {
                 let step = 30 - time - d;
-                let rem = largest(time + d + 1, nxt, visited, rate, dist, num_nodes);
+                let rem = largest(time + d + 1, nxt, visited, rate, dist);
                 total = std::cmp::max(total, step * rate[nxt] + rem);
             }
             visited[nxt] = false;
@@ -31,30 +30,25 @@ fn largest(
 fn elephant(
     time: u32,
     cur: usize,
-    visited: &mut Vec<bool>,
+    state: usize,
+    results: &mut HashMap<usize, u32>,
     rate: &Vec<u32>,
     dist: &Vec<u32>,
-    num_nodes: usize,
-    nvals: u32,
-) -> u32 {
-    if nvals == 0 {
-        largest(5, cur, visited, rate, dist, num_nodes)
-    } else {
-        let mut total = 0 as u32;
-        for nxt in 0..num_nodes {
-            if !visited[nxt] && rate[nxt] > 0 {
-                visited[nxt] = true;
-                let d = dist[cur * num_nodes + nxt];
-                if d + time < 26 {
-                    let step = 26 - time - d;
-                    let rem =
-                        elephant(time + d + 1, nxt, visited, rate, dist, num_nodes, nvals - 1);
-                    total = std::cmp::max(total, step * rate[nxt] + rem);
+    total: u32,
+) {
+    for nxt in 0..rate.len() {
+        if state & (1 << nxt) == 0 && rate[nxt] > 0 {
+            let d = dist[cur * rate.len() + nxt];
+            if d + time < 26 {
+                let state = state | (1 << nxt);
+                let step = 26 - time - d;
+                let total = total + step * rate[nxt];
+                if *results.entry(state).or_insert(0) < total {
+                    results.insert(state, total);
                 }
-                visited[nxt] = false;
+                elephant(time + d + 1, nxt, state, results, rate, dist, total);
             }
         }
-        total
     }
 }
 
@@ -132,17 +126,18 @@ fn main() {
     let cur = v2n["AA"];
     let mut visited = vec![false; num_nodes];
     visited[cur] = true;
-    let total = largest(time, cur, &mut visited, &rate, &dist, num_nodes);
+    let total = largest(time, cur, &mut visited, &rate, &dist);
     println!("{}", total);
 
-    let mut nvals = 0;
-    for r in &rate {
-        if *r > 0 {
-            nvals += 1;
+    let mut results = HashMap::<usize, u32>::new();
+    elephant(time, cur, 0, &mut results, &rate, &dist, 0);
+    let mut max: u32 = 0;
+    for (s1, v1) in &results {
+        for (s2, v2) in &results {
+            if s1 & s2 == 0 {
+                max = std::cmp::max(*v1 + *v2, max);
+            }
         }
     }
-    for nv in 0..nvals + 1 {
-        let total = elephant(time, cur, &mut visited, &rate, &dist, num_nodes, nv);
-        println!("{}", total);
-    }
+    println!("{}", max);
 }
