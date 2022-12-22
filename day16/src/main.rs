@@ -4,6 +4,60 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 
+fn largest(
+    time: u32,
+    cur: usize,
+    visited: &mut Vec<bool>,
+    rate: &Vec<u32>,
+    dist: &Vec<u32>,
+    num_nodes: usize,
+) -> u32 {
+    let mut total = 0 as u32;
+    for nxt in 0..num_nodes {
+        if !visited[nxt] && rate[nxt] > 0 {
+            visited[nxt] = true;
+            let d = dist[cur * num_nodes + nxt];
+            if d + time < 30 {
+                let step = 30 - time - d;
+                let rem = largest(time + d + 1, nxt, visited, rate, dist, num_nodes);
+                total = std::cmp::max(total, step * rate[nxt] + rem);
+            }
+            visited[nxt] = false;
+        }
+    }
+    total
+}
+
+fn elephant(
+    time: u32,
+    cur: usize,
+    visited: &mut Vec<bool>,
+    rate: &Vec<u32>,
+    dist: &Vec<u32>,
+    num_nodes: usize,
+    nvals: u32,
+) -> u32 {
+    if nvals == 0 {
+        largest(5, cur, visited, rate, dist, num_nodes)
+    } else {
+        let mut total = 0 as u32;
+        for nxt in 0..num_nodes {
+            if !visited[nxt] && rate[nxt] > 0 {
+                visited[nxt] = true;
+                let d = dist[cur * num_nodes + nxt];
+                if d + time < 26 {
+                    let step = 26 - time - d;
+                    let rem =
+                        elephant(time + d + 1, nxt, visited, rate, dist, num_nodes, nvals - 1);
+                    total = std::cmp::max(total, step * rate[nxt] + rem);
+                }
+                visited[nxt] = false;
+            }
+        }
+        total
+    }
+}
+
 struct Node {
     rate: u32,
     nbrs: HashSet<usize>,
@@ -74,12 +128,21 @@ fn main() {
         }
     }
 
-    let mut time = 1;
-    let mut cur = v2n["AA"];
-    let mut pres = 0;
+    let time = 1;
+    let cur = v2n["AA"];
     let mut visited = vec![false; num_nodes];
     visited[cur] = true;
-    while time < 30 {
-        time += 1;
+    let total = largest(time, cur, &mut visited, &rate, &dist, num_nodes);
+    println!("{}", total);
+
+    let mut nvals = 0;
+    for r in &rate {
+        if *r > 0 {
+            nvals += 1;
+        }
+    }
+    for nv in 0..nvals + 1 {
+        let total = elephant(time, cur, &mut visited, &rate, &dist, num_nodes, nv);
+        println!("{}", total);
     }
 }
