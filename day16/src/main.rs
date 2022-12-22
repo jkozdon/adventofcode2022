@@ -4,29 +4,6 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 
-fn largest(
-    time: u32,
-    cur: usize,
-    visited: &mut Vec<bool>,
-    rate: &Vec<u32>,
-    dist: &Vec<u32>,
-) -> u32 {
-    let mut total = 0 as u32;
-    for nxt in 0..rate.len() {
-        if !visited[nxt] && rate[nxt] > 0 {
-            visited[nxt] = true;
-            let d = dist[cur * rate.len() + nxt];
-            if d + time < 30 {
-                let step = 30 - time - d;
-                let rem = largest(time + d + 1, nxt, visited, rate, dist);
-                total = std::cmp::max(total, step * rate[nxt] + rem);
-            }
-            visited[nxt] = false;
-        }
-    }
-    total
-}
-
 fn elephant(
     time: u32,
     cur: usize,
@@ -39,14 +16,14 @@ fn elephant(
     for nxt in 0..rate.len() {
         if state & (1 << nxt) == 0 && rate[nxt] > 0 {
             let d = dist[cur * rate.len() + nxt];
-            if d + time < 26 {
+            if time > d {
                 let state = state | (1 << nxt);
-                let step = 26 - time - d;
+                let step = time - d - 1;
                 let total = total + step * rate[nxt];
                 if *results.entry(state).or_insert(0) < total {
                     results.insert(state, total);
                 }
-                elephant(time + d + 1, nxt, state, results, rate, dist, total);
+                elephant(time - d - 1, nxt, state, results, rate, dist, total);
             }
         }
     }
@@ -122,15 +99,17 @@ fn main() {
         }
     }
 
-    let time = 1;
     let cur = v2n["AA"];
-    let mut visited = vec![false; num_nodes];
-    visited[cur] = true;
-    let total = largest(time, cur, &mut visited, &rate, &dist);
-    println!("{}", total);
+    let mut results = HashMap::<usize, u32>::new();
+    elephant(30, cur, 0, &mut results, &rate, &dist, 0);
+    let mut max: u32 = 0;
+    for (_, v1) in &results {
+        max = std::cmp::max(*v1, max);
+    }
+    println!("alone:         {}", max);
 
     let mut results = HashMap::<usize, u32>::new();
-    elephant(time, cur, 0, &mut results, &rate, &dist, 0);
+    elephant(26, cur, 0, &mut results, &rate, &dist, 0);
     let mut max: u32 = 0;
     for (s1, v1) in &results {
         for (s2, v2) in &results {
@@ -139,5 +118,5 @@ fn main() {
             }
         }
     }
-    println!("{}", max);
+    println!("with elephant: {}", max);
 }
