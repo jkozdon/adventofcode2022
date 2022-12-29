@@ -1,9 +1,8 @@
 use regex::Regex;
-use std::collections::HashSet;
 use std::env;
 use std::fs;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 struct Robot {
     count: u32,
     ore: u32,
@@ -11,7 +10,7 @@ struct Robot {
     obsidian: u32,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 struct RoboTeam {
     ore: Robot,
     clay: Robot,
@@ -54,7 +53,7 @@ impl RoboTeam {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 struct Items {
     ore: u32,
     clay: u32,
@@ -72,13 +71,11 @@ impl Items {
         }
     }
 
-    pub fn update_clone(&self, team: &RoboTeam) -> Items {
-        Items {
-            ore: self.ore + team.ore.count,
-            clay: self.clay + team.clay.count,
-            obsidian: self.obsidian + team.obsidian.count,
-            geode: self.geode + team.geode.count,
-        }
+    pub fn update(&mut self, (ore, clay, obsidian, geode): (u32, u32, u32, u32)) {
+        self.ore += ore;
+        self.clay += clay;
+        self.obsidian += obsidian;
+        self.geode += geode;
     }
 
     pub fn buy_robot(&mut self, robot: &mut Robot) {
@@ -88,49 +85,8 @@ impl Items {
         robot.count += 1;
     }
 
-    pub fn sell_robot(&mut self, robot: &mut Robot) {
-        self.ore += robot.ore;
-        self.clay += robot.clay;
-        self.obsidian += robot.obsidian;
-        robot.count -= 1;
-    }
     pub fn can_buy(&self, robot: &Robot) -> bool {
         self.ore >= robot.ore && self.clay >= robot.clay && self.obsidian >= robot.obsidian
-    }
-}
-
-fn step(time: u32, team: &mut RoboTeam, pack: &Items, seen: &mut HashSet<(u32, Items, RoboTeam)>) -> u32 {
-    let mut new_pack = pack.update_clone(team);
-    let time = time + 1;
-    if seen.contains(&(time, new_pack, *team)) {
-        return 0;
-    }
-    seen.insert((time, new_pack.clone(), team.clone()));
-    if time == 24 {
-        new_pack.geode
-    } else {
-        let mut geodes = 0;
-        if new_pack.can_buy(&team.ore) {
-            new_pack.buy_robot(&mut team.ore);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
-            new_pack.sell_robot(&mut team.ore);
-        }
-        if new_pack.can_buy(&team.clay) {
-            new_pack.buy_robot(&mut team.clay);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
-            new_pack.sell_robot(&mut team.clay);
-        }
-        if new_pack.can_buy(&team.obsidian) {
-            new_pack.buy_robot(&mut team.obsidian);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
-            new_pack.sell_robot(&mut team.obsidian);
-        }
-        if new_pack.can_buy(&team.geode) {
-            new_pack.buy_robot(&mut team.geode);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
-            new_pack.sell_robot(&mut team.geode);
-        }
-        std::cmp::max(step(time, team, &mut new_pack, seen), geodes)
     }
 }
 
@@ -145,9 +101,44 @@ fn main() {
     for (i, blueprint) in re.captures_iter(&file).enumerate() {
         assert!(i + 1 == blueprint[1].parse::<usize>().expect("blueprint num"));
         let mut team = RoboTeam::new(blueprint);
-        let pack = Items::new();
-        let mut seen = HashSet::<(u32, Items, RoboTeam)>::new();
-        let geodes =  step(0, &mut team, &pack, &mut seen);
-        println!("{}", geodes);
+        assert!(team.obsidian.ore < team.obsidian.clay);
+        assert!(team.geode.ore < team.geode.obsidian);
+        let mut pack = Items::new();
+        for time in 0..24 {
+            let old = (
+                team.ore.count,
+                team.clay.count,
+                team.obsidian.count,
+                team.geode.count,
+            );
+
+            if pack.can_buy(&team.geode) {
+                pack.buy_robot(&mut team.geode);
+            }
+            let next_geode = if team.obsidian.count == 0 {
+                100000
+            } else {
+                (team.geode.obsidian + team.obsidian.count - 1 - pack.obsidian)
+                    / team.obsidian.count
+            };
+
+            if pack.can_buy(&team.obsidian)
+                && next_geode + pack.ore >= team.obsidian.ore + team.geode.ore
+            {
+                pack.buy_robot(&mut team.obsidian);
+            }
+            let next_obsidian = if team.clay.count == 0 {
+                100000
+            } else if pack.clay > team.obsidian.clay {
+                0
+            } else {
+                (team.obsidian.clay + team.clay.count - 1 - pack.clay) / team.clay.count
+            };
+            if pack.can_buy(&team.clay) && team.clay.ore <= next_obsidian + pack.ore {
+                pack.buy_robot(&mut team.clay);
+            }
+            pack.update(old);
+        }
+        println!("{:?}", pack.geode);
     }
 }
