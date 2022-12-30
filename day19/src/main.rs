@@ -90,6 +90,10 @@ impl Items {
     }
 }
 
+fn updiv(x: u32, y: u32) -> u32 {
+    (x + y - 1) / y
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -112,33 +116,59 @@ fn main() {
                 team.geode.count,
             );
 
-            if pack.can_buy(&team.geode) {
-                pack.buy_robot(&mut team.geode);
-            }
-            let next_geode = if team.obsidian.count == 0 {
-                100000
-            } else {
-                (team.geode.obsidian + team.obsidian.count - 1 - pack.obsidian)
-                    / team.obsidian.count
-            };
+            if team.obsidian.count > 0 {
+                if pack.can_buy(&team.geode) {
+                    pack.buy_robot(&mut team.geode);
+                } else if team.geode.obsidian >= pack.obsidian {
+                    let geode_time = team.obsidian.count
+                        * updiv(team.geode.obsidian - pack.obsidian, team.obsidian.count);
 
-            if pack.can_buy(&team.obsidian)
-                && next_geode + pack.ore >= team.obsidian.ore + team.geode.ore
-            {
-                pack.buy_robot(&mut team.obsidian);
-            }
-            let next_obsidian = if team.clay.count == 0 {
-                100000
-            } else if pack.clay > team.obsidian.clay {
-                0
+                    if geode_time + pack.ore >= team.geode.ore + team.obsidian.ore
+                    {
+                        if pack.can_buy(&team.obsidian) {
+                            pack.buy_robot(&mut team.obsidian);
+                        }
+                    } else if team.obsidian.clay >= pack.clay {
+                        let obsidian_time = team.clay.count
+                            * updiv(team.obsidian.clay - pack.clay, team.clay.count);
+                        if obsidian_time + geode_time + pack.ore
+                            >= team.geode.ore + team.obsidian.ore + team.clay.ore
+                            && geode_time + pack.ore
+                                >= team.geode.ore + team.clay.ore
+                            && obsidian_time + pack.ore
+                                >= team.obsidian.ore + team.clay.ore
+                        {
+                            if pack.can_buy(&team.clay) {
+                                pack.buy_robot(&mut team.clay);
+                            }
+                        }
+                    }
+                }
+            } else if team.clay.count > 0 {
+                if pack.can_buy(&team.obsidian) {
+                    pack.buy_robot(&mut team.obsidian);
+                } else if team.obsidian.clay >= pack.clay {
+                    let obsidian_time =
+                        team.clay.count * updiv(team.obsidian.clay - pack.clay, team.clay.count);
+                    if obsidian_time + pack.ore
+                        >= team.obsidian.ore + team.clay.ore
+                    {
+                        if pack.can_buy(&team.clay) {
+                            pack.buy_robot(&mut team.clay);
+                        }
+                    }
+                }
             } else {
-                (team.obsidian.clay + team.clay.count - 1 - pack.clay) / team.clay.count
-            };
-            if pack.can_buy(&team.clay) && team.clay.ore <= next_obsidian + pack.ore {
-                pack.buy_robot(&mut team.clay);
+                if pack.can_buy(&team.clay) {
+                    pack.buy_robot(&mut team.clay);
+                }
             }
             pack.update(old);
         }
-        println!("{:?}", pack.geode);
+        println!("{:?}", pack);
+        println!("ore:      {:?}", team.ore.count);
+        println!("clay:     {:?}", team.clay.count);
+        println!("obsidian: {:?}", team.obsidian.count);
+        println!("geode:    {:?}", team.geode.count);
     }
 }
