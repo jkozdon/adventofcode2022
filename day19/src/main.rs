@@ -99,54 +99,68 @@ impl Items {
 }
 
 fn step(
-    time: u32,
+    mut rem_time: u32,
     team: &mut RoboTeam,
     pack: &Items,
     seen: &mut HashSet<(u32, Items, RoboTeam)>,
     mut max_geodes: u32,
 ) -> u32 {
-    if seen.contains(&(time, *pack, *team)) {
+    if seen.contains(&(rem_time, *pack, *team)) {
         return 0;
     }
-    seen.insert((time, pack.clone(), team.clone()));
-    let time = time + 1;
+    seen.insert((rem_time, pack.clone(), team.clone()));
+    rem_time -= 1;
     let cur_geodes = pack.geode + team.geode.count;
-    let rem_time = 24 - time;
     let most_geodes = rem_time * (rem_time + 1) / 2 + cur_geodes + team.geode.count * rem_time;
-    if time == 24 {
+    if rem_time == 0 {
         cur_geodes
     } else if most_geodes > max_geodes {
         if pack.can_buy(&team.ore) {
             let mut new_pack = pack.clone();
             new_pack.update(&team);
             new_pack.buy_robot(&mut team.ore);
-            max_geodes = std::cmp::max(step(time, team, &new_pack, seen, max_geodes), max_geodes);
+            max_geodes = std::cmp::max(
+                step(rem_time, team, &new_pack, seen, max_geodes),
+                max_geodes,
+            );
             new_pack.sell_robot(&mut team.ore);
         }
         if pack.can_buy(&team.clay) {
             let mut new_pack = pack.clone();
             new_pack.update(&team);
             new_pack.buy_robot(&mut team.clay);
-            max_geodes = std::cmp::max(step(time, team, &new_pack, seen, max_geodes), max_geodes);
+            max_geodes = std::cmp::max(
+                step(rem_time, team, &new_pack, seen, max_geodes),
+                max_geodes,
+            );
             new_pack.sell_robot(&mut team.clay);
         }
         if pack.can_buy(&team.obsidian) {
             let mut new_pack = pack.clone();
             new_pack.update(&team);
             new_pack.buy_robot(&mut team.obsidian);
-            max_geodes = std::cmp::max(step(time, team, &new_pack, seen, max_geodes), max_geodes);
+            max_geodes = std::cmp::max(
+                step(rem_time, team, &new_pack, seen, max_geodes),
+                max_geodes,
+            );
             new_pack.sell_robot(&mut team.obsidian);
         }
         if pack.can_buy(&team.geode) {
             let mut new_pack = pack.clone();
             new_pack.update(&team);
             new_pack.buy_robot(&mut team.geode);
-            max_geodes = std::cmp::max(step(time, team, &new_pack, seen, max_geodes), max_geodes);
+            max_geodes = std::cmp::max(
+                step(rem_time, team, &new_pack, seen, max_geodes),
+                max_geodes,
+            );
             new_pack.sell_robot(&mut team.geode);
         }
         let mut new_pack = pack.clone();
         new_pack.update(&team);
-        std::cmp::max(step(time, team, &new_pack, seen, max_geodes), max_geodes)
+        std::cmp::max(
+            step(rem_time, team, &new_pack, seen, max_geodes),
+            max_geodes,
+        )
     } else {
         max_geodes
     }
@@ -166,9 +180,23 @@ fn main() {
         let mut team = RoboTeam::new(blueprint);
         let pack = Items::new();
         let mut seen = HashSet::<(u32, Items, RoboTeam)>::new();
-        let geodes = step(0, &mut team, &pack, &mut seen, 0);
-        println!("{}", geodes);
+        let geodes = step(24, &mut team, &pack, &mut seen, 0);
         quality += (i as u32 + 1) * geodes;
     }
-    println!("{}", quality);
+    println!("quality: {}", quality);
+
+    let mut prod = 1;
+    for (i, blueprint) in re.captures_iter(&file).enumerate() {
+        if i == 3 {
+            break;
+        }
+        assert!(i + 1 == blueprint[1].parse::<usize>().expect("blueprint num"));
+        let mut team = RoboTeam::new(blueprint);
+        let pack = Items::new();
+        let mut seen = HashSet::<(u32, Items, RoboTeam)>::new();
+        let geodes = step(32, &mut team, &pack, &mut seen, 0);
+        // println!("{}", geodes);
+        prod *= geodes;
+    }
+    println!("product: {}", prod);
 }
