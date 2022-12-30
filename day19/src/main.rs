@@ -72,13 +72,11 @@ impl Items {
         }
     }
 
-    pub fn update_clone(&self, team: &RoboTeam) -> Items {
-        Items {
-            ore: self.ore + team.ore.count,
-            clay: self.clay + team.clay.count,
-            obsidian: self.obsidian + team.obsidian.count,
-            geode: self.geode + team.geode.count,
-        }
+    pub fn update(&mut self, team: &RoboTeam) {
+        self.ore += team.ore.count;
+        self.clay += team.clay.count;
+        self.obsidian += team.obsidian.count;
+        self.geode += team.geode.count;
     }
 
     pub fn buy_robot(&mut self, robot: &mut Robot) {
@@ -94,43 +92,59 @@ impl Items {
         self.obsidian += robot.obsidian;
         robot.count -= 1;
     }
+
     pub fn can_buy(&self, robot: &Robot) -> bool {
         self.ore >= robot.ore && self.clay >= robot.clay && self.obsidian >= robot.obsidian
     }
 }
 
-fn step(time: u32, team: &mut RoboTeam, pack: &Items, seen: &mut HashSet<(u32, Items, RoboTeam)>) -> u32 {
-    let mut new_pack = pack.update_clone(team);
-    let time = time + 1;
-    if seen.contains(&(time, new_pack, *team)) {
+fn step(
+    time: u32,
+    team: &mut RoboTeam,
+    pack: &Items,
+    seen: &mut HashSet<(u32, Items, RoboTeam)>,
+) -> u32 {
+    if seen.contains(&(time, *pack, *team)) {
         return 0;
     }
-    seen.insert((time, new_pack.clone(), team.clone()));
+    seen.insert((time, pack.clone(), team.clone()));
+    let time = time + 1;
     if time == 24 {
-        new_pack.geode
+        println!("{}", pack.geode + team.geode.count);
+        pack.geode + team.geode.count
     } else {
         let mut geodes = 0;
-        if new_pack.can_buy(&team.ore) {
+        if pack.can_buy(&team.ore) {
+            let mut new_pack = pack.clone();
+            new_pack.update(&team);
             new_pack.buy_robot(&mut team.ore);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
+            geodes = std::cmp::max(step(time, team, &new_pack, seen), geodes);
             new_pack.sell_robot(&mut team.ore);
         }
-        if new_pack.can_buy(&team.clay) {
+        if pack.can_buy(&team.clay) {
+            let mut new_pack = pack.clone();
+            new_pack.update(&team);
             new_pack.buy_robot(&mut team.clay);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
+            geodes = std::cmp::max(step(time, team, &new_pack, seen), geodes);
             new_pack.sell_robot(&mut team.clay);
         }
-        if new_pack.can_buy(&team.obsidian) {
+        if pack.can_buy(&team.obsidian) {
+            let mut new_pack = pack.clone();
+            new_pack.update(&team);
             new_pack.buy_robot(&mut team.obsidian);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
+            geodes = std::cmp::max(step(time, team, &new_pack, seen), geodes);
             new_pack.sell_robot(&mut team.obsidian);
         }
-        if new_pack.can_buy(&team.geode) {
+        if pack.can_buy(&team.geode) {
+            let mut new_pack = pack.clone();
+            new_pack.update(&team);
             new_pack.buy_robot(&mut team.geode);
-            geodes = std::cmp::max(step(time, team, &mut new_pack, seen), geodes);
+            geodes = std::cmp::max(step(time, team, &new_pack, seen), geodes);
             new_pack.sell_robot(&mut team.geode);
         }
-        std::cmp::max(step(time, team, &mut new_pack, seen), geodes)
+        let mut new_pack = pack.clone();
+        new_pack.update(&team);
+        std::cmp::max(step(time, team, &new_pack, seen), geodes)
     }
 }
 
@@ -147,7 +161,7 @@ fn main() {
         let mut team = RoboTeam::new(blueprint);
         let pack = Items::new();
         let mut seen = HashSet::<(u32, Items, RoboTeam)>::new();
-        let geodes =  step(0, &mut team, &pack, &mut seen);
+        let geodes = step(0, &mut team, &pack, &mut seen);
         println!("{}", geodes);
     }
 }
