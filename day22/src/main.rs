@@ -9,15 +9,27 @@ fn main() {
 
     let mut map: Vec<Vec<char>> = Vec::new();
     for line in file.lines() {
+        if line.len() == 0 {}
         map.push(line.chars().collect());
     }
-    let route = map.pop().unwrap();
-    assert!(map.pop().unwrap().len() == 0);
+    let mut route = file.lines().last().unwrap();
+
     let mut pos: (usize, usize) = (0, 0);
     for (i, v) in map[0].iter().enumerate() {
         if *v == '.' {
             pos = (0, i);
             break;
         }
+    }
+
+    for mv in route.split_inclusive(|c: char| c == 'R' || c == 'L') {
+        let (num, turn) = if mv.chars().last().unwrap() == 'R' {
+            (mv.get(0..mv.len() - 1).unwrap(), Some('R'))
+        } else if mv.chars().last().unwrap() == 'L' {
+            (mv.get(0..mv.len() - 1).unwrap(), Some('L'))
+        } else {
+            (mv, None)
+        };
+        println!("{} {:?}", num, turn);
     }
 }
