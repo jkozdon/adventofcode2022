@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::iter::zip;
 
+#[allow(dead_code)]
 fn print_map(
     north: &Vec<u128>,
     south: &Vec<u128>,
@@ -98,6 +99,166 @@ fn step_map(
     }
 }
 
+fn recurse(
+    cache: &mut HashMap<(usize, usize, u32), u32>,
+    step: u32,
+    mut best_step: u32,
+    (i, j): (usize, usize),
+    north: &mut Vec<u128>,
+    south: &mut Vec<u128>,
+    east: &mut Vec<u128>,
+    west: &mut Vec<u128>,
+    width: usize,
+) -> u32 {
+    // Fast fail
+    if step > best_step {
+        return u32::MAX;
+    }
+
+    // Check if we have seen this state already
+    let height = north.len();
+    let chk = (i, j, step % (((width - 2) * (height - 2)) as u32));
+    match cache.get(&chk) {
+        Some(n) => {
+            if *n <= step {
+                return u32::MAX;
+            }
+        }
+        _ => (),
+    };
+    cache.insert(chk, step);
+
+    // If in the last spot we can exit!
+    if (i, j) == (width - 2, height - 2) {
+        println!("{}", step + 1);
+        return step + 1;
+    }
+
+    // Advance blizzard
+    step_map(north, south, east, west, width);
+
+    // If at starting position then we can only move down
+    if j == 0 {
+        assert!(i == 1);
+        // See if we can move down
+        let f = north[1] | south[1] | west[1] | east[1];
+        if f & 1 << 1 == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (1, 1),
+                north,
+                south,
+                east,
+                west,
+                width,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        };
+        // We can always stay put!
+        let new_step = recurse(
+            cache,
+            step + 1,
+            best_step,
+            (i, j),
+            north,
+            south,
+            east,
+            west,
+            width,
+        );
+        best_step = std::cmp::min(new_step, best_step);
+    } else {
+        // go south?
+        let fd = north[j + 1] | south[j + 1] | west[j + 1] | east[j + 1];
+        let fo = north[j] | south[j] | west[j] | east[j];
+        let fu = north[j - 1] | south[j - 1] | west[j - 1] | east[j - 1];
+        if j < height - 2 && fd & 1 << i == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (i, j + 1),
+                north,
+                south,
+                east,
+                west,
+                width,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        };
+
+        // go east?
+        if i < width - 2 && fo & 1 << (i + 1) == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (i + 1, j),
+                north,
+                south,
+                east,
+                west,
+                width,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        };
+
+        // go west?
+        if i > 1 && fo & 1 << (i - 1) == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (i - 1, j),
+                north,
+                south,
+                east,
+                west,
+                width,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        };
+
+        // go north?
+        if j > 1 && fu & 1 << i == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (i, j - 1),
+                north,
+                south,
+                east,
+                west,
+                width,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        };
+
+        // Stay put?
+        if fo & 1 << i == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (i, j),
+                north,
+                south,
+                east,
+                west,
+                width,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        }
+    }
+
+    // reverse blizzard
+    step_map(south, north, west, east, width);
+    best_step
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -125,18 +286,18 @@ fn main() {
         }
     }
 
-    print_map(&north, &south, &east, &west, width);
-    println!("");
-    step_map(&mut north, &mut south, &mut east, &mut west, width);
-    print_map(&north, &south, &east, &west, width);
-    println!("");
-    step_map(&mut north, &mut south, &mut east, &mut west, width);
-    print_map(&north, &south, &east, &west, width);
-    println!("");
-    step_map(&mut north, &mut south, &mut east, &mut west, width);
-    print_map(&north, &south, &east, &west, width);
-    println!("");
-    step_map(&mut north, &mut south, &mut east, &mut west, width);
-    print_map(&north, &south, &east, &west, width);
-    println!("");
+    let pos: (usize, usize) = (1, 0);
+    let mut cache = HashMap::<(usize, usize, u32), u32>::new();
+    let best = recurse(
+        &mut cache,
+        0,
+        u32::MAX,
+        pos,
+        &mut north,
+        &mut south,
+        &mut east,
+        &mut west,
+        width,
+    );
+    println!("{}", best);
 }
