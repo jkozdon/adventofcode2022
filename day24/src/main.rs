@@ -109,6 +109,7 @@ fn recurse(
     east: &mut Vec<u128>,
     west: &mut Vec<u128>,
     width: usize,
+    target: (usize, usize),
 ) -> u32 {
     // Fast fail
     if step > best_step {
@@ -129,8 +130,7 @@ fn recurse(
     cache.insert(chk, step);
 
     // If in the last spot we can exit!
-    if (i, j) == (width - 2, height - 2) {
-        println!("{}", step + 1);
+    if (i, j) == target {
         return step + 1;
     }
 
@@ -142,33 +142,40 @@ fn recurse(
         assert!(i == 1);
         // See if we can move down
         let f = north[1] | south[1] | west[1] | east[1];
-        if f & 1 << 1 == 0 {
+        if f & 1 << i == 0 {
             let new_step = recurse(
                 cache,
                 step + 1,
                 best_step,
-                (1, 1),
+                (i, j + 1),
                 north,
                 south,
                 east,
                 west,
                 width,
+                target,
             );
             best_step = std::cmp::min(new_step, best_step);
         };
-        // We can always stay put!
-        let new_step = recurse(
-            cache,
-            step + 1,
-            best_step,
-            (i, j),
-            north,
-            south,
-            east,
-            west,
-            width,
-        );
-        best_step = std::cmp::min(new_step, best_step);
+    } else if j == height - 1 {
+        assert!(i == width - 2);
+        // See if we can move down
+        let f = north[height - 2] | south[height - 2] | west[height - 2] | east[height - 2];
+        if f & 1 << i == 0 {
+            let new_step = recurse(
+                cache,
+                step + 1,
+                best_step,
+                (i, j - 1),
+                north,
+                south,
+                east,
+                west,
+                width,
+                target,
+            );
+            best_step = std::cmp::min(new_step, best_step);
+        };
     } else {
         // go south?
         let fd = north[j + 1] | south[j + 1] | west[j + 1] | east[j + 1];
@@ -185,6 +192,7 @@ fn recurse(
                 east,
                 west,
                 width,
+                target,
             );
             best_step = std::cmp::min(new_step, best_step);
         };
@@ -201,6 +209,7 @@ fn recurse(
                 east,
                 west,
                 width,
+                target,
             );
             best_step = std::cmp::min(new_step, best_step);
         };
@@ -217,6 +226,7 @@ fn recurse(
                 east,
                 west,
                 width,
+                target,
             );
             best_step = std::cmp::min(new_step, best_step);
         };
@@ -233,25 +243,27 @@ fn recurse(
                 east,
                 west,
                 width,
+                target,
             );
             best_step = std::cmp::min(new_step, best_step);
         };
-
-        // Stay put?
-        if fo & 1 << i == 0 {
-            let new_step = recurse(
-                cache,
-                step + 1,
-                best_step,
-                (i, j),
-                north,
-                south,
-                east,
-                west,
-                width,
-            );
-            best_step = std::cmp::min(new_step, best_step);
-        }
+    }
+    // Stay put?
+    let fo = north[j] | south[j] | west[j] | east[j];
+    if fo & 1 << i == 0 {
+        let new_step = recurse(
+            cache,
+            step + 1,
+            best_step,
+            (i, j),
+            north,
+            south,
+            east,
+            west,
+            width,
+            target,
+        );
+        best_step = std::cmp::min(new_step, best_step);
     }
 
     // reverse blizzard
@@ -286,18 +298,60 @@ fn main() {
         }
     }
 
+    let max_trip = 300;
     let pos: (usize, usize) = (1, 0);
     let mut cache = HashMap::<(usize, usize, u32), u32>::new();
-    let best = recurse(
+    let first = recurse(
         &mut cache,
         0,
-        u32::MAX,
+        max_trip, // set for faster stopping
         pos,
         &mut north,
         &mut south,
         &mut east,
         &mut west,
         width,
+        (width - 2, height - 2),
     );
-    println!("{}", best);
+    assert!(first < max_trip);
+    println!("first trip:           {}", first);
+
+    for _ in 0..first {
+        step_map(&mut north, &mut south, &mut east, &mut west, width);
+    }
+    let pos: (usize, usize) = (width - 2, height - 1);
+    let mut cache = HashMap::<(usize, usize, u32), u32>::new();
+    let second = recurse(
+        &mut cache,
+        0,
+        max_trip, // set for faster stopping
+        pos,
+        &mut north,
+        &mut south,
+        &mut east,
+        &mut west,
+        width,
+        (1, 1),
+    );
+    assert!(second < max_trip);
+
+    for _ in 0..second {
+        step_map(&mut north, &mut south, &mut east, &mut west, width);
+    }
+    let pos: (usize, usize) = (1, 0);
+    let mut cache = HashMap::<(usize, usize, u32), u32>::new();
+    let third = recurse(
+        &mut cache,
+        0,
+        max_trip, // set for faster stopping
+        pos,
+        &mut north,
+        &mut south,
+        &mut east,
+        &mut west,
+        width,
+        (width - 2, height - 2),
+    );
+    assert!(third < max_trip);
+    println!("there and back again: {}", first + second + third);
 }
