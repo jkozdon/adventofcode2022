@@ -17,24 +17,28 @@ fn print_map(
         }
     }
     println!("");
-    for ((n, s), (e, w)) in zip(zip(north, south), zip(east, west)) {
+    for j in 1..north.len() - 1 {
+        let n = north[j];
+        let s = south[j];
+        let e = east[j];
+        let w = west[j];
         print!("#");
         for i in 1..width - 1 {
             let mut c = '.';
             let mut count = 0;
-            if *n & 1 << i != 0 {
+            if n & 1 << i != 0 {
                 c = '^';
                 count += 1;
             }
-            if *s & 1 << i != 0 {
+            if s & 1 << i != 0 {
                 c = 'v';
                 count += 1;
             }
-            if *w & 1 << i != 0 {
+            if w & 1 << i != 0 {
                 c = '<';
                 count += 1;
             }
-            if *e & 1 << i != 0 {
+            if e & 1 << i != 0 {
                 c = '>';
                 count += 1;
             }
@@ -63,19 +67,18 @@ fn step_map(
     west: &mut Vec<u128>,
     width: usize,
 ) {
-    let top = north[0];
+    let height = north.len();
     for j in 1..north.len() {
         north[j - 1] = north[j];
     }
-    let n = north.len();
-    north[n - 1] = top;
+    north[height - 2] = north[0];
+    north[0] = 0;
 
-    let n = south.len();
-    let bot = south[n - 1];
     for j in (1..south.len()).rev() {
         south[j] = south[j - 1];
     }
-    south[0] = bot;
+    south[1] = south[height - 1];
+    south[height - 1] = 0;
 
     for j in 0..west.len() {
         west[j] >>= 1;
@@ -104,20 +107,20 @@ fn main() {
     let width = file.lines().nth(0).unwrap().chars().count();
     assert!(128 >= width);
     let height = file.lines().count();
-    let mut north = vec![0 as u128; height - 2];
-    let mut south = vec![0 as u128; height - 2];
-    let mut east = vec![0 as u128; height - 2];
-    let mut west = vec![0 as u128; height - 2];
+    let mut north = vec![0 as u128; height];
+    let mut south = vec![0 as u128; height];
+    let mut east = vec![0 as u128; height];
+    let mut west = vec![0 as u128; height];
     for (j, line) in file.lines().enumerate() {
         for (i, c) in line.chars().enumerate() {
             if c == '<' {
-                west[j - 1] |= 1 << i;
+                west[j] |= 1 << i;
             } else if c == '>' {
-                east[j - 1] |= 1 << i;
+                east[j] |= 1 << i;
             } else if c == '^' {
-                north[j - 1] |= 1 << i;
+                north[j] |= 1 << i;
             } else if c == 'v' {
-                south[j - 1] |= 1 << i;
+                south[j] |= 1 << i;
             }
         }
     }
